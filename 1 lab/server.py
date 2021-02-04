@@ -2,6 +2,8 @@ import socket
 import threading
 import mimetypes
 import logging
+import sys
+import json
 
 PORT = 8080
 ADDR = socket.gethostbyname(socket.gethostname())
@@ -42,23 +44,33 @@ def build_header(status_code, status_text):
 
 def post_request(text):
     list_message = text.split("\n")
-    start_body_of_message = 0
     print(list_message)
-    for i in list_message:
-        if len(i) == 0:
-            start_body_of_message = list_message.index(i)
+    message = list_message[list_message.index('\r') + 1]
+    message = message.split('&')
+    dict_message = dict()
+    for item in message:
+        try:
+            dict_message[item.split("=")[0]] = item.split("=")[1]
+        except Exception as e:
+            continue
     try:
-        with open("post_request.txt", "w") as file:
-            file.write("".join(list_message[start_body_of_message:len(list_message) - 1]))
-            header = "HTTP/1.1 200 OK\r\n"
+        with open("report.json", "w") as file:
+           json.dump(dict_message,file)
+
     except Exception as e:
-        header = "HTTP/1.1  500 Internal server error\n\n"
-        logging.info("Post request 500: Internal server error")
+        header = build_header('500','Internal Server Error')
+        logging.info(header)
+        print('Post request 500: Internal server error')
+    else:
+        header = build_header('200','OK')
+        logging.info('Post request 200 OK')
+
     response = ""
     return header, response
 
 
 def option_request():
+    logging.info(build_header("200", "OK"))
     response = ""
     return build_header("200", "OK"), response.encode()
 
@@ -66,22 +78,23 @@ def option_request():
 def get_request(text):
     file = FILE_PATH
     file += text.split(' ')[1]
-    print(file)
     try:
         with open(file, 'rb') as my_file:
             response = my_file.read()
-        logging.info("Get request 200 OK")
     except Exception as e:
         header = build_header("404", "Not Found")
         header += 'Content-Type: ' + mimetypes.types_map['.html'] + "\r\n"
         response = '<html><body><center><h3>Error 404: File not found</h3><p>Python HTTP Server</p></center></body></html>'.encode(
             'utf-8')
-        logging.info("Get request 404: File not found")
+        logging.info(header)
+        print("Get request 404: File not found")
     else:
         extension = file.split(".")[1]
         content_type = mimetypes.types_map["." + extension]
         header = build_header("200", "OK")
         header += 'Content-Type: ' + content_type + "\r\n"
+        logging.info(header)
+        print("Get request 200 OK")
 
     return header, response
 
@@ -90,7 +103,6 @@ def connected_user(conn, addr):
     message = conn.recv(4096)
     logging.info(f"Server received from {conn} message.")
     if not message:
-        logging.info("Disconnected")
         return
     header, response = parse_request(message.decode())
     print(header)
@@ -100,8 +112,9 @@ def connected_user(conn, addr):
     if len(response) != 0:
         data += response
     conn.sendall(data)
-    logging.info(f"Server sent {addr} message")
+    logging.info(f"Server sent {addr} message,\n message ={data} ")
 
 
 if __name__ == '__main__':
     start_work()
+
