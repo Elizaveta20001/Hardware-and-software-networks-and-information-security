@@ -1,51 +1,78 @@
 import socket
 import threading
 import mimetypes
+import logging
 
 PORT = 8080
 ADDR = socket.gethostbyname(socket.gethostname())
+logging.basicConfig(filename="log.txt",level=logging.INFO,filemode='w')
+FILE_PATH ="D:/PyCharm/Hardware-and-software-networks-and-information-security/1 lab"
 
 
 def start_work():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
         server.bind(("localhost", PORT))
+        logging.info(f"Server is running on localhost:{PORT}.")
         server.listen(10)
+        logging.info("Server is waiting for connection.")
         while True:
             conn, addr = server.accept()
-            message = conn.recv(1024)
-            print(message.decode())
-            header, response = parse_request(message.decode().split(" "))
-            print(header)
-            print(response)
-            data = header
-            data += "\r\n"
-            data += response.decode()
-            conn.sendall(data.encode())
+            logging.info(f"Server is connecting with {conn}")
+            thread = threading.Thread(target=connected_user,args=(conn,addr))
+            thread.start()
 
 
-def parse_request(text):
-    method = text[0]
+
+
+def parse_request(text:str):
+    method = text.split(" ")[0]
     print(method)
     if method == "GET":
         return get_request(text)
     elif method == "POST":
-        pass
+        return post_request(text)
     else:
         pass
 
 
+def post_request(text):
+    list_message = text.split("\n")
+    start_body_of_message = 0
+    print(list_message)
+    for i in list_message:
+        if len(i) == 0:
+            start_body_of_message = list_message.index(i)
+    try:
+        with open("post_request.txt","w") as file:
+            file.write("".join(list_message[start_body_of_message:len(list_message) -1]))
+            header = "HTTP/1.1 200 OK\r\n"
+    except Exception as e:
+        header = "HTTP/1.1  500 Internal server error\n\n"
+        logging.info("Post request 500: Internal server error")
+    response = ""
+    return header, response
+
+
+
+
+def option_request(text):
+    pass
+
+
 def get_request(text):
-    file = text[1]
-    file = file.split('/')[1]
+    file = FILE_PATH
+    file += text.split(' ')[1]
     print(file)
     try:
         with open(file, 'rb') as my_file:
             response = my_file.read()
         header = "HTTP/1.1 200 OK\r\n"
+        logging.info("Get request 200 OK")
     except Exception as e:
         header = "HTTP/1.1 404 Not Found\n\n"
         response = '<html><body><center><h3>Error 404: File not found</h3><p>Python HTTP Server</p></center></body></html>'.encode(
             'utf-8')
+        logging.info("Get request 404: File not found")
     else:
         extension = file.split(".")[1]
         content_type = mimetypes.types_map["." + extension]
@@ -55,7 +82,21 @@ def get_request(text):
 
 
 def connected_user(conn, addr):
-    pass
+    message = conn.recv(4096)
+    logging.info(f"Server received from {conn} message.")
+    if not message:
+        logging.info("Disconnected")
+        return
+    header, response = parse_request(message.decode())
+    print(header)
+    print(response)
+    data = header
+    data += "\r\n"
+    data = data.encode()
+    if len(response) != 0:
+        data += response
+    conn.sendall(data)
+    logging.info(f"Server sent {addr} message")
 
 
 if __name__ == '__main__':
