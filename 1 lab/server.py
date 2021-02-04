@@ -5,8 +5,8 @@ import logging
 
 PORT = 8080
 ADDR = socket.gethostbyname(socket.gethostname())
-logging.basicConfig(filename="log.txt",level=logging.INFO,filemode='w')
-FILE_PATH ="D:/PyCharm/Hardware-and-software-networks-and-information-security/1 lab"
+logging.basicConfig(filename="log.txt", level=logging.INFO, filemode='w')
+FILE_PATH = "D:/PyCharm/Hardware-and-software-networks-and-information-security/1 lab"
 
 
 def start_work():
@@ -18,21 +18,26 @@ def start_work():
         while True:
             conn, addr = server.accept()
             logging.info(f"Server is connecting with {conn}")
-            thread = threading.Thread(target=connected_user,args=(conn,addr))
+            thread = threading.Thread(target=connected_user, args=(conn, addr))
             thread.start()
 
 
-
-
-def parse_request(text:str):
+def parse_request(text: str):
     method = text.split(" ")[0]
     print(method)
     if method == "GET":
         return get_request(text)
     elif method == "POST":
         return post_request(text)
-    else:
-        pass
+    elif method == "OPTIONS":
+        return option_request()
+
+
+def build_header(status_code, status_text):
+    header = "HTTP/1.1 " + status_code + " " + status_text + " \r\n"
+    header += "Access-Control-Allow-Origin: " + "http://localhost:8080/" + "\n"
+    header += "Access-Control-Allow-Method: " + "POST, GET, OPTIONS" + "\r\n"
+    return header
 
 
 def post_request(text):
@@ -43,8 +48,8 @@ def post_request(text):
         if len(i) == 0:
             start_body_of_message = list_message.index(i)
     try:
-        with open("post_request.txt","w") as file:
-            file.write("".join(list_message[start_body_of_message:len(list_message) -1]))
+        with open("post_request.txt", "w") as file:
+            file.write("".join(list_message[start_body_of_message:len(list_message) - 1]))
             header = "HTTP/1.1 200 OK\r\n"
     except Exception as e:
         header = "HTTP/1.1  500 Internal server error\n\n"
@@ -53,10 +58,9 @@ def post_request(text):
     return header, response
 
 
-
-
-def option_request(text):
-    pass
+def option_request():
+    response = ""
+    return build_header("200", "OK"), response.encode()
 
 
 def get_request(text):
@@ -66,16 +70,17 @@ def get_request(text):
     try:
         with open(file, 'rb') as my_file:
             response = my_file.read()
-        header = "HTTP/1.1 200 OK\r\n"
         logging.info("Get request 200 OK")
     except Exception as e:
-        header = "HTTP/1.1 404 Not Found\n\n"
+        header = build_header("404", "Not Found")
+        header += 'Content-Type: ' + mimetypes.types_map['.html'] + "\r\n"
         response = '<html><body><center><h3>Error 404: File not found</h3><p>Python HTTP Server</p></center></body></html>'.encode(
             'utf-8')
         logging.info("Get request 404: File not found")
     else:
         extension = file.split(".")[1]
         content_type = mimetypes.types_map["." + extension]
+        header = build_header("200", "OK")
         header += 'Content-Type: ' + content_type + "\r\n"
 
     return header, response
@@ -89,7 +94,6 @@ def connected_user(conn, addr):
         return
     header, response = parse_request(message.decode())
     print(header)
-    print(response)
     data = header
     data += "\r\n"
     data = data.encode()
