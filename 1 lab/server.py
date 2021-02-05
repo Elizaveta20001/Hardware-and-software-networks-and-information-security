@@ -4,17 +4,17 @@ import mimetypes
 import logging
 import sys
 import json
+import argparse
 
-PORT = 8080
-ADDR = socket.gethostbyname(socket.gethostname())
 logging.basicConfig(filename="log.txt", level=logging.INFO, filemode='w')
-FILE_PATH = "D:/PyCharm/Hardware-and-software-networks-and-information-security/1 lab"
 
 
-def start_work():
+def start_work(port,path):
+    global FILE_PATH
+    FILE_PATH = path
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
-        server.bind(("localhost", PORT))
-        logging.info(f"Server is running on localhost:{PORT}.")
+        server.bind(("localhost", port))
+        logging.info(f"Server is running on localhost:{port}.")
         server.listen(10)
         logging.info("Server is waiting for connection.")
         while True:
@@ -116,5 +116,10 @@ def connected_user(conn, addr):
 
 
 if __name__ == '__main__':
-    start_work()
+    parse = argparse.ArgumentParser()
+    parse.add_argument("--port",'-p',type=int,help='Set server port',default=8080)
+    parse.add_argument("--directory","-d",type=str,help='Set directory',default='D:/PyCharm/Hardware-and-software-networks-and-information-security/1 lab')
+    args = parse.parse_args()
+    start_work(port=args.port,path=args.directory)
+
 
